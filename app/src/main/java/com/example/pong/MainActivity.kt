@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.MotionEvent
 import android.view.SurfaceView
 import android.widget.Toast
+import com.example.pong.Paddle.Move.*
 
 
 class MainActivity : Activity() {
@@ -36,7 +37,7 @@ class MainActivity : Activity() {
 
         var player: Player = Player()
         private var paddle: Paddle = Paddle(screenWidth, screenHeight)
-        var ball: Ball = Ball(screenWidth, screenHeight)
+        var ball: Ball = Ball()
         var bricks: ArrayList<Brick> = ArrayList()
 
         init {
@@ -85,20 +86,20 @@ class MainActivity : Activity() {
 
             for (i in 0 until bricks.size) {
                 if (bricks[i].visibility) {
-                    if (RectF.intersects(bricks[i].rect, ball.rect)) {
-                        bricks[i].setInvisible()
-                        ball.reverseYVelocity()
+                    if (RectF.intersects(bricks[i].rectangle, ball.rectangle)) {
+                        bricks[i].visibility = false
+                        ball.bounceVertical()
                         player.addPoints(100)
                     }
                 }
             }
-            if (RectF.intersects(paddle.rect, ball.rect)) {
-                ball.setRandomXVelocity()
-                ball.reverseYVelocity()
-                ball.clearObstacleY(paddle.rect.top - 2)
+            if (RectF.intersects(paddle.rectangle, ball.rectangle)) {
+                ball.bounceHorizontalAtRandom()
+                ball.bounceVertical()
+                ball.clearObstacleY(paddle.rectangle.top - 2)
             }
-            if (ball.rect.bottom > screenHeight) {
-                ball.reverseYVelocity()
+            if (ball.rectangle.bottom > screenHeight) {
+                ball.bounceVertical()
                 ball.clearObstacleY((screenHeight - 2).toFloat())
 
                 player.kill()
@@ -109,20 +110,20 @@ class MainActivity : Activity() {
                 }
             }
 
-            if (ball.rect.top < 0) {
-                ball.reverseYVelocity()
+            if (ball.rectangle.top < 0) {
+                ball.bounceVertical()
                 ball.clearObstacleY(12f)
 
             }
 
-            if (ball.rect.left < 0) {
-                ball.reverseXVelocity()
+            if (ball.rectangle.left < 0) {
+                ball.bounceHorizontal()
                 ball.clearObstacleX(2f)
             }
 
-            if (ball.rect.right > screenWidth - POINTS_FOR_BRICK) {
+            if (ball.rectangle.right > screenWidth - POINTS_FOR_BRICK) {
 
-                ball.reverseXVelocity()
+                ball.bounceHorizontal()
                 ball.clearObstacleX((screenWidth - 22).toFloat())
 
             }
@@ -150,8 +151,8 @@ class MainActivity : Activity() {
 
         private fun drawBallAndPaddle() {
             Paint().color = Color.argb(255, 255, 255, 255)
-            canvas.drawRect(paddle.rect, Paint())
-            canvas.drawRect(ball.rect, Paint())
+            canvas.drawRect(paddle.rectangle, Paint())
+            canvas.drawRect(ball.rectangle, Paint())
         }
 
         private fun drawBricks() {
@@ -159,7 +160,7 @@ class MainActivity : Activity() {
 
             for (i in 0 until bricks.size) {
                 if (bricks[i].visibility) {
-                    canvas.drawRect(bricks[i].rect, Paint())
+                    canvas.drawRect(bricks[i].rectangle, Paint())
                 }
             }
         }
@@ -196,11 +197,11 @@ class MainActivity : Activity() {
                 MotionEvent.ACTION_DOWN -> {
                     paused = false
                     if (motionEvent.x > screenWidth / 2)
-                        paddle.setMovementState(paddle.RIGHT)
-                    else paddle.setMovementState(paddle.LEFT)
+                        paddle.changeMoveDirection(RIGHT)
+                    else paddle.changeMoveDirection(LEFT)
                 }
 
-                MotionEvent.ACTION_UP -> paddle.setMovementState(paddle.STOPPED)
+                MotionEvent.ACTION_UP -> paddle.changeMoveDirection(STOPPED)
             }
             return true
         }
