@@ -4,10 +4,10 @@ import android.graphics.RectF
 import com.example.pong.Paddle.Move.*
 
 class Paddle(screenX: Int, screenY: Int) {
-    private val length: Float = 130f
-    private val height: Float = 20f
+    private val length: Float = 200f
+    private val height: Float = 50f
     private var x: Float = (screenX / 2).toFloat()
-    private val y: Float = (screenY - 20).toFloat()
+    private val y: Float = (screenY - 150).toFloat()
     val rectangle: RectF = RectF(x, y, x + length, y + height)
 
     private var moveDirection = STOPPED
@@ -35,7 +35,7 @@ class Paddle(screenX: Int, screenY: Int) {
             override fun step(): Float = speed
         };
 
-        internal val speed = 350f
+        internal val speed = 400f
 
         abstract fun step(): Float
     }

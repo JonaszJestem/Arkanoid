@@ -1,18 +1,21 @@
 package com.example.pong
 
 import android.graphics.RectF
+import java.lang.Math.abs
 
 import java.util.Random
 
 class Ball {
     var rectangle: RectF = RectF()
     private var horizontalSpeed: Float = 200f
-    private var verticalSpeed: Float = -400f
-    private var ballWidth = 10f
-    private var ballHeight = 10f
+    private var verticalSpeed: Float = -600f
+    private var ballWidth = 30f
+    private var ballHeight = 30f
 
 
     fun update(fps: Long) {
+        horizontalSpeed = if (abs(horizontalSpeed) < 100) 200f else horizontalSpeed
+
         rectangle.left = rectangle.left + horizontalSpeed / fps
         rectangle.top = rectangle.top + verticalSpeed / fps
         rectangle.right = rectangle.left + ballWidth
@@ -33,20 +36,13 @@ class Ball {
         }
     }
 
-    fun clearObstacleY(y: Float) {
-        rectangle.bottom = y
-        rectangle.top = y - ballHeight
-    }
+    fun reset(paddle: Paddle) {
+        val paddleCenter = paddle.rectangle.left + (paddle.rectangle.right - paddle.rectangle.left) / 2
+        val paddleTop = paddle.rectangle.top
 
-    fun clearObstacleX(x: Float) {
-        rectangle.left = x
-        rectangle.right = x + ballWidth
-    }
-
-    fun reset(x: Int, y: Int) {
-        rectangle.left = (x / 2).toFloat()
-        rectangle.top = (y - 20).toFloat()
-        rectangle.right = x / 2 + ballWidth
-        rectangle.bottom = y.toFloat() - 20f - ballHeight
+        rectangle.left = paddleCenter - ballWidth / 2
+        rectangle.right = paddleCenter + ballWidth / 2
+        rectangle.top = paddleTop + ballHeight
+        rectangle.bottom = paddleTop
     }
 }

@@ -3,10 +3,10 @@ package com.example.pong
 import android.app.Activity
 import android.content.Context
 import android.graphics.*
+import android.graphics.Color.*
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.SurfaceView
-import android.widget.Toast
 import com.example.pong.Paddle.Move.*
 
 
@@ -32,76 +32,82 @@ class MainActivity : Activity() {
         private var playing: Boolean = false
         private var paused = true
 
-        private var fps: Long = 0
-        private var timeThisFrame: Long = 0
+        private val pointsForBrick = 100
 
-        var player: Player = Player()
+        private var player: Player = Player()
         private var paddle: Paddle = Paddle(screenWidth, screenHeight)
-        var ball: Ball = Ball()
-        var bricks: ArrayList<Brick> = ArrayList()
+        private var ball: Ball = Ball()
+        private var bricks: ArrayList<Brick> = ArrayList()
 
         init {
-            paddle
-            ball
-
             createBricksAndRestart()
         }
 
-        private val POINTS_FOR_BRICK = 10
-
         private fun createBricksAndRestart() {
-            ball.reset(screenWidth, screenHeight)
+            ball.reset(paddle)
 
-            val brickWidth = screenWidth / 8
-            val brickHeight = screenHeight / 10
-
-            for (column in 0..7) {
-                for (row in 0..2) {
-                    bricks.add(Brick(row, column, brickWidth, brickHeight))
+            for (column in 0..3) {
+                for (row in 0..4) {
+                    bricks.add(Brick(row, column, screenWidth, screenHeight))
                 }
             }
             if (player.lives == 0) {
-                player.score = 0
-                player.lives = 3
+                player.reset()
             }
         }
 
         override fun run() {
+            var framesToUpdate: Long = 0
             while (playing) {
-                val startFrameTime = System.currentTimeMillis()
+                val beforeDrawing = System.currentTimeMillis()
+
                 if (!paused) {
-                    update()
+                    update(framesToUpdate)
                 }
+
                 draw()
-                timeThisFrame = System.currentTimeMillis() - startFrameTime
-                if (timeThisFrame >= 1) {
-                    fps = 1000 / timeThisFrame
+                val afterDrawing = System.currentTimeMillis() - beforeDrawing
+                if (afterDrawing >= 1) {
+                    framesToUpdate = 1000 / afterDrawing
                 }
             }
         }
 
-        private fun update() {
-            paddle.update(fps)
-            ball.update(fps)
+        private fun update(framesToUpdate: Long) {
+            paddle.update(framesToUpdate)
+            ball.update(framesToUpdate)
 
-            for (i in 0 until bricks.size) {
-                if (bricks[i].visibility) {
-                    if (RectF.intersects(bricks[i].rectangle, ball.rectangle)) {
-                        bricks[i].visibility = false
-                        ball.bounceVertical()
-                        player.addPoints(100)
-                    }
-                }
+            checkForBricksIntersection()
+            bounceBallFromPaddle()
+            checkForDeath()
+            bounceFromTop()
+            bounceFromSides()
+            checkForGameEnd()
+        }
+
+        private fun checkForGameEnd() {
+            if (player.score == bricks.size * pointsForBrick) {
+                paused = true
+                createBricksAndRestart()
             }
-            if (RectF.intersects(paddle.rectangle, ball.rectangle)) {
-                ball.bounceHorizontalAtRandom()
+        }
+
+        private fun bounceFromSides() {
+            if (ball.rectangle.left < 0 || ball.rectangle.right > screenWidth) {
+                ball.bounceHorizontal()
+            }
+        }
+
+        private fun bounceFromTop() {
+            if (ball.rectangle.top < 0) {
                 ball.bounceVertical()
-                ball.clearObstacleY(paddle.rectangle.top - 2)
+
             }
+        }
+
+        private fun checkForDeath() {
             if (ball.rectangle.bottom > screenHeight) {
-                ball.bounceVertical()
-                ball.clearObstacleY((screenHeight - 2).toFloat())
-
+                ball.reset(paddle)
                 player.kill()
 
                 if (player.isDead()) {
@@ -109,28 +115,22 @@ class MainActivity : Activity() {
                     createBricksAndRestart()
                 }
             }
+        }
 
-            if (ball.rectangle.top < 0) {
+        private fun bounceBallFromPaddle() {
+            if (RectF.intersects(paddle.rectangle, ball.rectangle)) {
+                ball.bounceHorizontalAtRandom()
                 ball.bounceVertical()
-                ball.clearObstacleY(12f)
-
             }
+        }
 
-            if (ball.rectangle.left < 0) {
-                ball.bounceHorizontal()
-                ball.clearObstacleX(2f)
-            }
-
-            if (ball.rectangle.right > screenWidth - POINTS_FOR_BRICK) {
-
-                ball.bounceHorizontal()
-                ball.clearObstacleX((screenWidth - 22).toFloat())
-
-            }
-
-            if (player.score == bricks.size * POINTS_FOR_BRICK) {
-                paused = true
-                createBricksAndRestart()
+        private fun checkForBricksIntersection() {
+            for (brick in bricks) {
+                if (brick.visible && RectF.intersects(brick.rectangle, ball.rectangle)) {
+                    brick.visible = false
+                    ball.bounceVertical()
+                    player.addPoints(pointsForBrick)
+                }
             }
         }
 
@@ -138,49 +138,40 @@ class MainActivity : Activity() {
             if (holder.surface.isValid) {
                 canvas = holder.lockCanvas()
 
-                canvas.drawColor(Color.argb(255, 26, 128, 182))
-
+                canvas.drawColor(BLACK)
                 drawBallAndPaddle()
-
                 drawBricks()
                 drawPoints()
-                handleGameEnd()
+
                 holder.unlockCanvasAndPost(canvas)
             }
         }
 
         private fun drawBallAndPaddle() {
-            Paint().color = Color.argb(255, 255, 255, 255)
-            canvas.drawRect(paddle.rectangle, Paint())
-            canvas.drawRect(ball.rectangle, Paint())
+            val paint = getPaint(WHITE)
+            canvas.drawRect(paddle.rectangle, paint)
+            canvas.drawRect(ball.rectangle, paint)
         }
 
         private fun drawBricks() {
-            Paint().color = Color.argb(255, 249, 129, 0)
+            val paint = getPaint(WHITE)
 
             for (i in 0 until bricks.size) {
-                if (bricks[i].visibility) {
-                    canvas.drawRect(bricks[i].rectangle, Paint())
+                if (bricks[i].visible) {
+                    canvas.drawRect(bricks[i].rectangle, paint)
                 }
             }
         }
 
         private fun drawPoints() {
-            Paint().color = Color.argb(255, 255, 255, 255)
-
-            Paint().textSize = 40f
-            canvas.drawText("Score: ${player.score} Lives: ${player.lives}", 10f, 50f, Paint())
+            val paint = getPaint(YELLOW)
+            paint.textSize = 80f
+            canvas.drawText("Score: ${player.score} Lives: ${player.lives}", 10f, 100f, paint)
         }
 
-        private fun handleGameEnd() {
-            if (hasWon()) {
-                Toast.makeText(context, "You won!", Toast.LENGTH_LONG).show()
-            } else if (player.isDead()) {
-                Toast.makeText(context, "You lost!", Toast.LENGTH_LONG).show()
-            }
+        private fun getPaint(paintColor: Int): Paint {
+            return Paint().apply { color = paintColor }
         }
-
-        private fun hasWon() = player.score == bricks.size * POINTS_FOR_BRICK
 
         fun pause() {
             playing = false
@@ -216,5 +207,4 @@ class MainActivity : Activity() {
         super.onPause()
         arkanoid.pause()
     }
-
 }
