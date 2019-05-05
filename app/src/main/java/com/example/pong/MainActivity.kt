@@ -9,28 +9,33 @@ import android.view.MotionEvent
 import android.view.SurfaceView
 import com.example.pong.Paddle.Move.*
 
-
 class MainActivity : Activity() {
     private lateinit var arkanoid: Arkanoid
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val preferences = getSharedPreferences("$packageName.preferences", Context.MODE_PRIVATE)
 
         val display = windowManager.defaultDisplay
         val displaySize = Point()
         display.getSize(displaySize)
 
-        arkanoid = Arkanoid(this, displaySize.x, displaySize.y)
+        arkanoid = Arkanoid(this, displaySize.x, displaySize.y, GameSaver(preferences))
         setContentView(arkanoid)
     }
 
-    internal inner class Arkanoid(context: Context, private val screenWidth: Int, private val screenHeight: Int) :
+    internal inner class Arkanoid(
+        context: Context,
+        private val screenWidth: Int,
+        private val screenHeight: Int,
+        private val gameSaver: GameSaver
+    ) :
         SurfaceView(context),
         Runnable {
         private lateinit var canvas: Canvas
         private var gameThread = Thread(this)
+        private var paused: Boolean = true
         private var playing: Boolean = false
-        private var paused = true
 
         private val pointsForBrick = 100
 
@@ -40,19 +45,18 @@ class MainActivity : Activity() {
         private var bricks: ArrayList<Brick> = ArrayList()
 
         init {
-            createBricksAndRestart()
+            clearGame()
         }
 
-        private fun createBricksAndRestart() {
+        private fun clearGame() {
             ball.reset(paddle)
+            bricks.clear()
+            player.reset()
 
             for (column in 0..3) {
                 for (row in 0..4) {
                     bricks.add(Brick(row, column, screenWidth, screenHeight))
                 }
-            }
-            if (player.lives == 0) {
-                player.reset()
             }
         }
 
@@ -77,18 +81,21 @@ class MainActivity : Activity() {
             paddle.update(framesToUpdate)
             ball.update(framesToUpdate)
 
-            checkForBricksIntersection()
+            handleBricksDestroying()
             bounceBallFromPaddle()
-            checkForDeath()
+
             bounceFromTop()
             bounceFromSides()
+
+            checkForDeath()
             checkForGameEnd()
         }
 
         private fun checkForGameEnd() {
             if (player.score == bricks.size * pointsForBrick) {
                 paused = true
-                createBricksAndRestart()
+                clearGame()
+                gameSaver.clearPreferences()
             }
         }
 
@@ -101,7 +108,6 @@ class MainActivity : Activity() {
         private fun bounceFromTop() {
             if (ball.rectangle.top < 0) {
                 ball.bounceVertical()
-
             }
         }
 
@@ -112,7 +118,7 @@ class MainActivity : Activity() {
 
                 if (player.isDead()) {
                     paused = true
-                    createBricksAndRestart()
+                    clearGame()
                 }
             }
         }
@@ -124,7 +130,7 @@ class MainActivity : Activity() {
             }
         }
 
-        private fun checkForBricksIntersection() {
+        private fun handleBricksDestroying() {
             for (brick in bricks) {
                 if (brick.visible && RectF.intersects(brick.rectangle, ball.rectangle)) {
                     brick.visible = false
@@ -175,11 +181,19 @@ class MainActivity : Activity() {
 
         fun pause() {
             playing = false
+            gameSaver.save(ball, paddle, bricks, player)
             gameThread.join()
         }
 
         fun resume() {
             playing = true
+            if (gameSaver.wasSaved()) {
+                ball = gameSaver.getSavedBall()
+                paddle = gameSaver.getSavedPaddle()
+                bricks = gameSaver.getSavedBricks()
+                player = gameSaver.getSavedPlayer()
+            }
+            gameThread = Thread(this)
             gameThread.start()
         }
 

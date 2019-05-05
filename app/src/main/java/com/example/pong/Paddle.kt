@@ -8,7 +8,7 @@ class Paddle(screenX: Int, screenY: Int) {
     private val height: Float = 50f
     private var x: Float = (screenX / 2).toFloat()
     private val y: Float = (screenY - 150).toFloat()
-    val rectangle: RectF = RectF(x, y, x + length, y + height)
+    var rectangle: RectF = RectF(x, y, x + length, y + height)
 
     private var moveDirection = STOPPED
 
